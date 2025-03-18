@@ -10,9 +10,10 @@ USAGE:
     echoserver [FLAGS] [OPTIONS]
 
 FLAGS:
-    -h, --help       Prints help information
-    -q, --quiet      Return a simple 200 Success instead of the full JSON response
-    -V, --version    Prints version information
+    -h, --help         Prints help information
+    -m, --mask-auth    Mask the Authorization header value with "***" in the response
+    -q, --quiet        Return a simple 200 Success instead of the full JSON response
+    -V, --version      Prints version information
 
 OPTIONS:
     -i, --ip <ip>        IP address to bind the server to [default: 127.0.0.1]
