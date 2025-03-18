@@ -21,6 +21,10 @@ struct Opt {
     /// Port to bind the server to
     #[structopt(short, long, default_value = "3000")]
     port: u16,
+
+    /// Return a simple 200 Success instead of the full JSON response
+    #[structopt(short, long)]
+    quiet: bool,
 }
 
 #[tokio::main]
@@ -37,7 +41,8 @@ async fn main() {
     let addr = SocketAddr::from((ip, opt.port));
 
     // Create a router that handles all HTTP methods on all paths
-    let app = Router::new().fallback(any(echo_handler));
+    let app = Router::new().fallback(any(move |req| echo_handler(req, opt.quiet)));
+
 
     println!("Server running on http://{}", addr);
 
@@ -53,7 +58,7 @@ async fn main() {
     });
 }
 
-async fn echo_handler(request: Request) -> impl IntoResponse {
+async fn echo_handler(request: Request, quiet: bool) -> impl IntoResponse {
     // Extract method and path
     let method = request.method().clone();
     let uri = request.uri().clone();
@@ -102,5 +107,9 @@ async fn echo_handler(request: Request) -> impl IntoResponse {
 
     println!("Response: \n{}", response_str);
 
-    Json(response).into_response()
+    if quiet {
+        StatusCode::OK.into_response()
+    } else {
+        Json(response).into_response()
+    }
 }
