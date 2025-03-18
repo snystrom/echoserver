@@ -6,18 +6,51 @@ use axum::{
     Router,
 };
 use serde_json::{json, Value};
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
+use std::str::FromStr;
+use structopt::StructOpt;
+
+// Define command-line arguments
+#[derive(StructOpt, Debug)]
+#[structopt(name = "echo_server", about = "HTTP server that echoes request details")]
+struct Opt {
+    /// IP address to bind the server to
+    #[structopt(short, long, default_value = "127.0.0.1")]
+    ip: String,
+
+    /// Port to bind the server to
+    #[structopt(short, long, default_value = "3000")]
+    port: u16,
+}
 
 #[tokio::main]
 async fn main() {
+    // Parse command-line arguments
+    let opt = Opt::from_args();
+
+    // Parse the IP address
+    let ip = IpAddr::from_str(&opt.ip).unwrap_or_else(|_| {
+        eprintln!("Invalid IP address: {}, using 127.0.0.1 instead", opt.ip);
+        IpAddr::from_str("127.0.0.1").unwrap()
+    });
+
+    let addr = SocketAddr::from((ip, opt.port));
+
     // Create a router that handles all HTTP methods on all paths
     let app = Router::new().fallback(any(echo_handler));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("Server running on http://{}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    // Start the server
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap_or_else(|e| {
+        eprintln!("Failed to bind to {}: {}", addr, e);
+        std::process::exit(1);
+    });
+
+    axum::serve(listener, app).await.unwrap_or_else(|e| {
+        eprintln!("Server error: {}", e);
+        std::process::exit(1);
+    });
 }
 
 async fn echo_handler(request: Request) -> impl IntoResponse {
@@ -39,7 +72,7 @@ async fn echo_handler(request: Request) -> impl IntoResponse {
         .collect();
 
     // Extract body
-    let (parts, body) = request.into_parts();
+    let (_parts, body) = request.into_parts();
 
     let bytes = match axum::body::to_bytes(body, usize::MAX).await {
         Ok(bytes) => bytes,
@@ -61,7 +94,6 @@ async fn echo_handler(request: Request) -> impl IntoResponse {
         "body": body_str,
         "headers": headers_json,
     });
-
 
     // Convert the JSON to a string for logging
     let response_str = serde_json::to_string_pretty(&response).unwrap_or_else(|e| {
