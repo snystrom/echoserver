@@ -12,7 +12,7 @@ use structopt::StructOpt;
 
 // Define command-line arguments
 #[derive(StructOpt, Debug)]
-#[structopt(name = "echo_server", about = "HTTP server that echoes request details")]
+#[structopt(name = "echoserver", about = "HTTP server that echoes request details")]
 struct Opt {
     /// IP address to bind the server to
     #[structopt(short, long, default_value = "127.0.0.1")]

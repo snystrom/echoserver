@@ -3,7 +3,7 @@
 A simple tool to echo received payloads.
 
 ``` sh
-echo_server 0.1.0
+echoserver 0.1.0
 HTTP server that echoes request details
 
 USAGE:
