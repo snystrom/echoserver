@@ -10,7 +10,6 @@ use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use structopt::StructOpt;
 
-// Define command-line arguments
 #[derive(StructOpt, Debug)]
 #[structopt(name = "echoserver", about = "HTTP server that echoes request details")]
 struct Opt {
@@ -25,6 +24,10 @@ struct Opt {
     /// Return a simple 200 Success instead of the full JSON response
     #[structopt(short, long)]
     quiet: bool,
+
+    /// Mask the Authorization header value with "***" in the response
+    #[structopt(short = "m", long)]
+    mask_auth: bool,
 }
 
 #[tokio::main]
@@ -41,7 +44,7 @@ async fn main() {
     let addr = SocketAddr::from((ip, opt.port));
 
     // Create a router that handles all HTTP methods on all paths
-    let app = Router::new().fallback(any(move |req| echo_handler(req, opt.quiet)));
+    let app = Router::new().fallback(any(move |req| echo_handler(req, opt.quiet, opt.mask_auth)));
 
 
     println!("Server running on http://{}", addr);
@@ -58,7 +61,7 @@ async fn main() {
     });
 }
 
-async fn echo_handler(request: Request, quiet: bool) -> impl IntoResponse {
+async fn echo_handler(request: Request, quiet: bool, mask_auth: bool) -> impl IntoResponse {
     // Extract method and path
     let method = request.method().clone();
     let uri = request.uri().clone();
@@ -68,12 +71,20 @@ async fn echo_handler(request: Request, quiet: bool) -> impl IntoResponse {
     let headers_json: Value = headers
         .iter()
         .map(|(name, value)| {
+            let header_name = name.to_string();
+            let header_value = if mask_auth &&
+                               header_name.to_lowercase() == "authorization" {
+                // Mask the authorization header value
+                "***".to_string()
+            } else {
+                // Use the original header value
+                value.to_str().unwrap_or("invalid utf-8").to_string()
+            };
             (
-                name.to_string(),
-                // Explicitly convert to String to avoid ambiguity
-                value.to_str().unwrap_or("invalid utf-8").to_string(),
+                header_name, header_value
             )
-        })
+
+         })
         .collect();
 
     // Extract body
